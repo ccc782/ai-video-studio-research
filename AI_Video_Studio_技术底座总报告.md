@@ -40,14 +40,14 @@ AI Video Studio 的底座因此定成：**决定产品差异的三层全自研�
   - 1.3 端侧 AI 货架：这是最值得抄的部分
   - 1.4 草稿格式：`draft_content.json` 字段级
   - 1.5 Lyra XMLDraft：给 AI 用的工程语言（本轮最大发现）
-  - 1.6 原生编辑命令表：200+ 条，17 个域（`[实测]`）
+  - 1.6 原生编辑命令表：18 个域 / 199 条，安全子集 26 条（`[实测]`）
   - 1.7 自动化与 Agent 内部架构（`[实测]`）
   - 1.8 音频与语音（`[实测]`）
   - 1.9 剪映的五条可搬运结论
 - **第二章 DaVinci Resolve 21.2**
   - 2.1 架构总览：一个 581MB 的 Qt 单体 + 一组可插拔子系统
   - 2.2 脚本自动化：三层入口，一套对象模型
-  - 2.3 API 面清点：22 个类，530 个方法（`[实测]`）
+  - 2.3 API 面清点：16 个含方法的类 / 530 个方法（`[实测]`；类型定义合计 86 个，含 TypedDict 与别名）
   - 2.4 工程存储：SQLite 库 + `.drp` 是 ZIP 包 XML（`[实测]`）
   - 2.5 Fusion：节点引擎 + 三种扩展语言
   - 2.6 调色与色彩管理
@@ -147,7 +147,7 @@ AI Video Studio 的底座因此定成：**决定产品差异的三层全自研�
 | 软件 | 它到底是什么 | 值得搬的东西 | 别搬的东西 |
 | --- | --- | --- | --- |
 | 剪映 11.7 | Qt6 + CEF + Lynx 前端，C++ 剪辑内核（`videoeditor.dll` 70MB）+ 自研渲染器（`VECreator.dll` 275MB / `cccreator.dll` 151MB），外挂一整套 Agent Runtime | 草稿 JSON 的字段设计、**Lyra XMLDraft 协议**（AI 改工程的语言）、`draft_patch` 补丁事务模型、NDK 级别的编辑器命令表、端侧模型货架 | 它的云依赖（`GeckoSDK`/`pc_push`/`ever_cloud_sdk`）、它的水印与风控 |
-| 达芬奇 21.2 | 单文件 581MB 的 Qt5 C++ 宿主 + Fusion 节点引擎（Lua）+ Python 3.14 嵌入式 + 530 个脚本 API | 脚本对象模型、`.drp` = ZIP(XML) 的工程打包法、DCTL 的像素着色器 DSL、OFX 1.4 插件契约、`-nogui` 无头渲染 | 它的商业许可分发方式、它的 GPU 独占调度 |
+| 达芬奇 21.2 | 单文件 581MB 的 Qt5 C++ 宿主 + Fusion 节点引擎（Lua）+ Python 3.14 嵌入式 + 530 个脚本 API | 脚本对象模型、`.drp` = ZIP(XML) 的工程打包法、DCTL 的像素着色器 DSL、OFX 1.4 插件契约、`-nogui` 无头渲染 | 它的商业授权分发方式、它的 GPU 独占调度 |
 | AE 27.0 | RIFX 二进制工程 + ExtendScript/CEP/UXP 三层扩展 + `aerender` 批渲染 | 效果插件（PF_Effect）与 AEGP 的分层、表达式引擎、合成嵌套数据模型、「模板工程 + 脚本灌参 + aerender 出货」的自动化套路 | 它闭源到骨头的渲染管线 |
 
 **给 AI Video Studio 定的底座**（详见 第七部分）：
@@ -488,7 +488,7 @@ transitions        video_effects      video_trackings  videos           vocal_be
 vocal_separations
 ```
 
-56 个键名（含上面 46 类 + 少量历史键）就是它的**素材对象类型系统**。抄这张表等于抄完了短视频剪辑的能力清单：抠像（chromas/green_screens/masks/matting 走 video_effects）、调色（color_curves/hsl/primary_color_wheels/log_color_wheels/material_colors）、音频（audio_fades/beats/loudnesses/vocal_separations/vocal_beautifys/realtime_denoises/sound_channel_mappings）、跟踪（video_trackings）、智能（smart_crops/smart_relights）、动画（material_animations/handwrites）。
+46 个键名（实测集合，空桶也算在档）就是它的**素材对象类型系统**。抄这张表等于抄完了短视频剪辑的能力清单：抠像（chromas/green_screens/masks/matting 走 video_effects）、调色（color_curves/hsl/primary_color_wheels/log_color_wheels/material_colors）、音频（audio_fades/beats/loudnesses/vocal_separations/vocal_beautifys/realtime_denoises/sound_channel_mappings）、跟踪（video_trackings）、智能（smart_crops/smart_relights）、动画（material_animations/handwrites）。
 
 #### 1.4.4 文字段与文字素材
 
@@ -529,7 +529,11 @@ vocal_separations
   template.tmp / draft_cover
 ```
 
-`[实测]` 判据：同目录里 `draft_content.json` 明文 431KB 可读，而其 `.bak` 已达 2343KB 且为密文——说明**外部工具写明文，剪映照读；剪映自己一另存就换密文**。`[第三方]` 加密开关由云端配置下发，抓到的配置键为 `draft_entryption_config:{"enable_all":true}`（原文即拼错），协议号 5.9→110、11.3→183。`[推断]` 引擎串里出现 `cipher_type` / `cipher_key` / `key_store addKey` / `decrypt_aes_v1` 与 Crypto++ 的 `Rijndael_Info` + `CTR_ModePolicy`，即 AES-CTR 家族。
+`[实测]` 判据：同目录里 `draft_content.json` 明文 431KB 可读，而其 `.bak` 已达 2343KB 且为密文——说明**外部工具写明文，剪映照读；剪映自己一另存就换密文**。`[第三方]` 加密开关由云端配置下发，抓到的配置键为 `draft_entryption_config:{"enable_all":true}`（原文即拼错），协议号 5.9→110、11.3→183。`[推断]` 引擎串里出现 `cipher_type` / `cipher_key` / `key_store addKey` / `decrypt_aes_v1` 与 Crypto++ 的 `Rijndael_Info` + `CTR_ModePolicy`，指向 AES 家族。
+
+反向仓库把这层从推断升级成实测（`avs-reverse-engineering` 的 `reports/crypto_jy_veditor.json`）：`videoeditor.dll` 里 `AES_SBOX_FIPS197 @ 0x353BD10`、`AES_INV_SBOX @ 0x353BE10` 原样在档，`AESENC` 簇 12 处，库指纹 `CryptoPP / Rijndael_Info / CTR_ModePolicy / GCM_Base`；密文格式是版本族 `high_aes_general_v40s`、`high_aes_general_v41s`、`aip_high_aes_general_v43s_jm`，密钥侧 `IOManagerPrivate::decryptKV2` + `key_store addKey`。结论改判为 `[实测]`：**AES 家族（Crypto++ 实现）+ 三套密文格式版本 + KV2 密钥库**。
+
+反向仓库把这层从「推断」坐实（`avs-reverse-engineering` 的 `reports/crypto_jy_veditor.json`）：`videoeditor.dll` 里 `AES_SBOX_FIPS197 @ 0x353BD10`、`AES_INV_SBOX @ 0x353BE10` 原样在档，`AESENC` 簇 12 处，库指纹 `CryptoPP / Rijndael_Info / CTR_ModePolicy / GCM_Base`；版本族串 `high_aes_general_v40s`、`high_aes_general_v41s`、`aip_high_aes_general_v43s_jm`，密钥侧为 `IOManagerPrivate::decryptKV2` 与 `key_store addKey`。结论升级为 `[实测]`：**AES 家族（Crypto++ 实现）+ 三套密文格式版本 + KV2 密钥库**。
 
 对我们的直接影响（写进 第六部分的格式策略）：
 1. **「明文工程」是产品决策，不是技术细节**。剪映上锁是为了堵第三方工具与防抄袭，代价是自己的文件不可 diff、不可审查、出问题只能靠 `.bak`。我们的 AVS 格式一律明文 + 规范化排序，diff 与审查是一等能力。
@@ -630,7 +634,7 @@ draft.apply(); 才会把 target 落到真实草稿
 
 抄这条的理由：大模型的输出有长度上限且会漂移。**把「改」和「提交」分成两个事务**，让失败可以带状态重试，而不必重放整批。这比「生成整份工程再覆盖」健壮一个量级。
 
-### 1.6 原生编辑命令表：200+ 条，17 个域（`[实测]`）
+### 1.6 原生编辑命令表：18 个域 / 199 条，安全子集 26 条（`[实测]`）
 
 来源：`Resources\canvas_agent\runtime\app-server.mjs` 里冻结的命令白名单对象（含 `Set` 化的全量校验 + 一份更小的「安全子集」白名单）。
 
@@ -841,7 +845,7 @@ UI 桥：     Plugins\ChromiumEmbeddedFramework（Workflow Integration 的 WebVi
 
 `[实测-失败]` 隔离副本上 `Resolve.exe -nogui` 启动即退出、1144 未监听。判据：`msiexec /a` 展开的是文件树，缺首次初始化的 `ProgramData` 与授权状态。这条记为「本副本上没跑通」，官方文档写明 `-nogui` 支持脚本，正式安装环境要重测。
 
-### 2.3 API 面清点：22 个类，530 个方法（`[实测]`）
+### 2.3 API 面清点：16 个含方法的类 / 530 个方法（`[实测]`；类型定义合计 86 个，含 TypedDict 与别名）
 
 解析 `DaVinciResolveScript.pyi`（3645 行 / 163KB，2026 年版）得到的确切数字：
 
@@ -1397,6 +1401,8 @@ aerender -project c:\projects\proj1.aep -comp "Comp 1" -s 1 -e 10 -RStemplate "M
 > 对象：剪映专业版 11.7.0.14652（本机隔离版实测）、DaVinci Resolve 21.2 build 6（本机隔离版实测）、After Effects 27.0（本机未装，走公开资料与随包文档线）
 > 证据口径沿用 `第一部分` 六档：`[实测]` / `[随包文档]` / `[开源代码]` / `[第三方]` / `[推断]` / `[未证实]`
 
+> 规模：十组主表合计 **126 行**（① 13 / ② 13 / ③ 13 / ④ 13 / ⑤ 13 / ⑥ 10 / ⑦ 12 / ⑧ 11 / ⑨ 13 / ⑩ 15），每行 9 列。
+
 ### 读法
 
 - 每行一个具体功能，9 列固定：功能 ｜ 剪映 11.7 ｜ 达芬奇 21.2 ｜ AE 27.0 ｜ 实现方式判定 ｜ 公开程度 ｜ 我们复用度 ｜ 开发难度 ｜ 技术来源。
@@ -1681,7 +1687,7 @@ aerender -project c:\projects\proj1.aep -comp "Comp 1" -s 1 -e 10 -RStemplate "M
 > 工程目录：`C:\AI Video Studio工程参考`
 > 采集时间：2026-11-20（时区 +08:00）
 > 基线：`第一部分` 的 12 层技术地图 · `F_技术选型报告.md` 的四种判定 · `G_开发路线图.md` 的七阶段
-> 覆盖项目：83 个，分 10 组（其中 2 个因仓库路径拿不到，star 与版本标「未核实」，另有 5 个缺 Release 语义只标 star 与提交时间）
+> 覆盖项目：84 个（十组实测行数 8 / 5 / 6 / 3 / 9 / 11 / 15 / 9 / 11 / 7）；仓库列用 `Owner/Repo` 简写，拼上 `https://github.com/` 即为地址，分 10 组（其中 2 个因仓库路径拿不到，star 与版本标「未核实」，另有 5 个缺 Release 语义只标 star 与提交时间）
 
 ---
 
@@ -2381,7 +2387,7 @@ Critic 必须区分四级证据（照抄剪映 `editing-review` 的规则，这�
 工具面 22 个（见下）；长任务用 progress notification；交互用 elicitation
 ```
 
-工具清单（对齐用户需求的 17 条能力，收敛成 22 个工具）：
+工具清单（对齐用户需求的 17 条能力，收敛成 28 个工具）：
 
 | 组 | 工具 | 说明 |
 | --- | --- | --- |
@@ -2650,7 +2656,17 @@ Level 4  对话历史    最近 N 轮 + 关键决策点（带引用回 Level 1-3
 }
 ```
 
-主轨约束（抄剪映的规则）：`role:"main"` 的轨道**全工程只能有一条**，且它的 `clips` 必须**首尾相接无空洞**。这条约束把「主轨黑洞」这类非法状态在 schema 层就掐死。
+主轨约束（抄剪映的规则）：`role:"main"` 的轨道**全工程只能有一条**，且它的 `clips` 必须**首尾相接无空洞**。
+
+**这条约束属于 validator，不属于 schema。** JSON Schema 表达不了「跨片段的连续性」「同轨不重叠」「ID 全局唯一」「引用可解析」这四类约束。分工写死：
+
+| 校验层 | 管什么 | 实现 |
+| --- | --- | --- |
+| schema（`E_avs_project.schema.json`） | 单对象形状：类型、必需字段、枚举、范围、单字段正负 | `ajv` / `jsonschema` |
+| validator（编译器内建） | 跨对象不变量：主轨唯一且连续、同轨不重叠、ID 唯一、引用可解析、变速曲线积分一致、转场时长上限 | C++ `IProjectValidator`，Python 侧有等价实现供 CI 用 |
+| 语义校验 | 素材时长够不够、嵌套有没有环、字体存不存在 | 导入/编译期 |
+
+用 11 条反例跑过一轮（`_audit/schema_negtest.py`），schema 拦得住 4 条（负时长、浮点微秒、fps 分母为 0、画布为 0），拦不住 7 条（主轨留洞、两条主轨、重复 ID、字段名拼错、悬空素材、双侧转场）。**所以「schema 校验通过」只等于形状对，不等于工程能编。** 这条区别写进 CI：任何合并都必须同时过 schema 与 validator，缺一不算数。
 
 ##### 4.3.2 clip
 

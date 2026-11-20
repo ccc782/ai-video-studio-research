@@ -165,7 +165,7 @@ transitions        video_effects      video_trackings  videos           vocal_be
 vocal_separations
 ```
 
-56 个键名（含上面 46 类 + 少量历史键）就是它的**素材对象类型系统**。抄这张表等于抄完了短视频剪辑的能力清单：抠像（chromas/green_screens/masks/matting 走 video_effects）、调色（color_curves/hsl/primary_color_wheels/log_color_wheels/material_colors）、音频（audio_fades/beats/loudnesses/vocal_separations/vocal_beautifys/realtime_denoises/sound_channel_mappings）、跟踪（video_trackings）、智能（smart_crops/smart_relights）、动画（material_animations/handwrites）。
+46 个键名（实测集合，空桶也算在档）就是它的**素材对象类型系统**。抄这张表等于抄完了短视频剪辑的能力清单：抠像（chromas/green_screens/masks/matting 走 video_effects）、调色（color_curves/hsl/primary_color_wheels/log_color_wheels/material_colors）、音频（audio_fades/beats/loudnesses/vocal_separations/vocal_beautifys/realtime_denoises/sound_channel_mappings）、跟踪（video_trackings）、智能（smart_crops/smart_relights）、动画（material_animations/handwrites）。
 
 ### 1.4.4 文字段与文字素材
 
@@ -206,7 +206,11 @@ vocal_separations
   template.tmp / draft_cover
 ```
 
-`[实测]` 判据：同目录里 `draft_content.json` 明文 431KB 可读，而其 `.bak` 已达 2343KB 且为密文——说明**外部工具写明文，剪映照读；剪映自己一另存就换密文**。`[第三方]` 加密开关由云端配置下发，抓到的配置键为 `draft_entryption_config:{"enable_all":true}`（原文即拼错），协议号 5.9→110、11.3→183。`[推断]` 引擎串里出现 `cipher_type` / `cipher_key` / `key_store addKey` / `decrypt_aes_v1` 与 Crypto++ 的 `Rijndael_Info` + `CTR_ModePolicy`，即 AES-CTR 家族。
+`[实测]` 判据：同目录里 `draft_content.json` 明文 431KB 可读，而其 `.bak` 已达 2343KB 且为密文——说明**外部工具写明文，剪映照读；剪映自己一另存就换密文**。`[第三方]` 加密开关由云端配置下发，抓到的配置键为 `draft_entryption_config:{"enable_all":true}`（原文即拼错），协议号 5.9→110、11.3→183。`[推断]` 引擎串里出现 `cipher_type` / `cipher_key` / `key_store addKey` / `decrypt_aes_v1` 与 Crypto++ 的 `Rijndael_Info` + `CTR_ModePolicy`，指向 AES 家族。
+
+反向仓库把这层从推断升级成实测（`avs-reverse-engineering` 的 `reports/crypto_jy_veditor.json`）：`videoeditor.dll` 里 `AES_SBOX_FIPS197 @ 0x353BD10`、`AES_INV_SBOX @ 0x353BE10` 原样在档，`AESENC` 簇 12 处，库指纹 `CryptoPP / Rijndael_Info / CTR_ModePolicy / GCM_Base`；密文格式是版本族 `high_aes_general_v40s`、`high_aes_general_v41s`、`aip_high_aes_general_v43s_jm`，密钥侧 `IOManagerPrivate::decryptKV2` + `key_store addKey`。结论改判为 `[实测]`：**AES 家族（Crypto++ 实现）+ 三套密文格式版本 + KV2 密钥库**。
+
+反向仓库把这层从「推断」坐实（`avs-reverse-engineering` 的 `reports/crypto_jy_veditor.json`）：`videoeditor.dll` 里 `AES_SBOX_FIPS197 @ 0x353BD10`、`AES_INV_SBOX @ 0x353BE10` 原样在档，`AESENC` 簇 12 处，库指纹 `CryptoPP / Rijndael_Info / CTR_ModePolicy / GCM_Base`；版本族串 `high_aes_general_v40s`、`high_aes_general_v41s`、`aip_high_aes_general_v43s_jm`，密钥侧为 `IOManagerPrivate::decryptKV2` 与 `key_store addKey`。结论升级为 `[实测]`：**AES 家族（Crypto++ 实现）+ 三套密文格式版本 + KV2 密钥库**。
 
 对我们的直接影响（写进 E 文档的格式策略）：
 1. **「明文工程」是产品决策，不是技术细节**。剪映上锁是为了堵第三方工具与防抄袭，代价是自己的文件不可 diff、不可审查、出问题只能靠 `.bak`。我们的 AVS 格式一律明文 + 规范化排序，diff 与审查是一等能力。
@@ -307,7 +311,7 @@ draft.apply(); 才会把 target 落到真实草稿
 
 抄这条的理由：大模型的输出有长度上限且会漂移。**把「改」和「提交」分成两个事务**，让失败可以带状态重试，而不必重放整批。这比「生成整份工程再覆盖」健壮一个量级。
 
-## 1.6 原生编辑命令表：200+ 条，17 个域（`[实测]`）
+## 1.6 原生编辑命令表：18 个域 / 199 条，安全子集 26 条（`[实测]`）
 
 来源：`Resources\canvas_agent\runtime\app-server.mjs` 里冻结的命令白名单对象（含 `Set` 化的全量校验 + 一份更小的「安全子集」白名单）。
 
@@ -518,7 +522,7 @@ UI 桥：     Plugins\ChromiumEmbeddedFramework（Workflow Integration 的 WebVi
 
 `[实测-失败]` 隔离副本上 `Resolve.exe -nogui` 启动即退出、1144 未监听。判据：`msiexec /a` 展开的是文件树，缺首次初始化的 `ProgramData` 与授权状态。这条记为「本副本上没跑通」，官方文档写明 `-nogui` 支持脚本，正式安装环境要重测。
 
-## 2.3 API 面清点：22 个类，530 个方法（`[实测]`）
+## 2.3 API 面清点：16 个含方法的类 / 530 个方法（`[实测]`；类型定义合计 86 个，含 TypedDict 与别名）
 
 解析 `DaVinciResolveScript.pyi`（3645 行 / 163KB，2026 年版）得到的确切数字：
 
