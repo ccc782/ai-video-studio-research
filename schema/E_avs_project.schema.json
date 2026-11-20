@@ -1,0 +1,689 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aivideostudio.local/schema/avs_project.schema.json",
+  "title": "AVS Project",
+  "description": "AI Video Studio 工程文件（AVS 1.0）唯一真相格式。时间字段一律 int64 微秒，帧率一律有理数。",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "min_reader", "id", "name", "sequences"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "min_reader": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "id": { "$ref": "#/$defs/id" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "created_us": { "type": "integer", "minimum": 0 },
+    "updated_us": { "type": "integer", "minimum": 0 },
+    "generator": {
+      "type": "object",
+      "properties": {
+        "app": { "type": "string" },
+        "version": { "type": "string" },
+        "model_runs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "settings": { "$ref": "#/$defs/settings" },
+    "media": { "type": "array", "items": { "$ref": "#/$defs/media" } },
+    "sequences": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sequence" } },
+    "effects_lib": { "type": "array", "items": { "$ref": "#/$defs/effect_def" } },
+    "ai": { "$ref": "#/$defs/ai" },
+    "history": { "$ref": "#/$defs/history" },
+    "_ext": { "type": "object" }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "description": "对象唯一标识。生产环境用带前缀的 UUIDv7（sq_/tr_/cl_/fx_/kf_/md_/tk_/tx_）；样例与测试允许短标识（如 sq_main），只要同工程内唯一。"
+    },
+    "us": { "type": "integer" },
+    "rational": {
+      "type": "object",
+      "required": ["num", "den"],
+      "properties": {
+        "num": { "type": "integer", "minimum": 1 },
+        "den": { "type": "integer", "minimum": 1 },
+        "drop_frame": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "color4": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "items": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+
+    "settings": {
+      "type": "object",
+      "properties": {
+        "default_sequence_id": { "$ref": "#/$defs/id" },
+        "ui": { "type": "object" },
+        "ai": {
+          "type": "object",
+          "properties": {
+            "model_route": { "type": "string" },
+            "auto_apply_threshold": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.7 },
+            "max_batch_clips": { "type": "integer", "minimum": 1, "default": 3 }
+          }
+        },
+        "render": {
+          "type": "object",
+          "properties": { "default_preset_id": { "type": "string" } }
+        },
+        "paths": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+
+    "media": {
+      "type": "object",
+      "required": ["id", "kind", "uri"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["video", "audio", "image", "sequence", "generator"] },
+        "uri": { "type": "string" },
+        "rel_uri": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "probe": {
+          "type": "object",
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 },
+            "fps": { "$ref": "#/$defs/rational" },
+            "dur_us": { "$ref": "#/$defs/us" },
+            "video_codec": { "type": "string" },
+            "pix_fmt": { "type": "string" },
+            "color": {
+              "type": "object",
+              "properties": {
+                "primaries": { "type": "string" },
+                "transfer": { "type": "string" },
+                "matrix": { "type": "string" },
+                "range": { "enum": ["tv", "pc"] }
+              }
+            },
+            "audio": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "codec": { "type": "string" },
+                  "channels": { "type": "integer", "minimum": 1 },
+                  "sample_rate": { "type": "integer", "minimum": 8000 }
+                }
+              }
+            }
+          }
+        },
+        "proxy": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string" },
+            "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+            "codec": { "type": "string" }
+          }
+        },
+        "derived": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "blob"],
+            "properties": {
+              "kind": { "enum": ["waveform", "thumbnail", "transcript", "embedding", "proxy_index", "scene_cuts"] },
+              "blob": { "type": "string" },
+              "at_us": { "$ref": "#/$defs/us" },
+              "lang": { "type": "string" },
+              "diarized": { "type": "boolean" },
+              "model": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "sequence": {
+      "type": "object",
+      "required": ["id", "name", "canvas", "fps", "tracks"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "type": "string" },
+        "canvas": {
+          "type": "object",
+          "required": ["width", "height"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 },
+            "ratio": { "type": "string" },
+            "background": { "$ref": "#/$defs/color4" }
+          }
+        },
+        "fps": { "$ref": "#/$defs/rational" },
+        "sample_rate": { "type": "integer", "minimum": 8000, "default": 48000 },
+        "channels": { "type": "integer", "minimum": 1, "default": 2 },
+        "color": {
+          "type": "object",
+          "properties": {
+            "working": { "type": "string" },
+            "display": { "type": "string" },
+            "view": { "type": "string" },
+            "ocio_config": { "type": "string" }
+          }
+        },
+        "audio": {
+          "type": "object",
+          "properties": {
+            "loudness_target_lufs": { "type": "number" },
+            "true_peak_db": { "type": "number", "maximum": 0 },
+            "normalize": { "type": "boolean", "default": false }
+          }
+        },
+        "dur_us": { "$ref": "#/$defs/us" },
+        "tracks": { "type": "array", "items": { "$ref": "#/$defs/track" } },
+        "markers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "at_us"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "at_us": { "$ref": "#/$defs/us" },
+              "name": { "type": "string" },
+              "color": { "type": "string" }
+            }
+          }
+        },
+        "nested_in": { "$ref": "#/$defs/id" }
+      }
+    },
+
+    "track": {
+      "type": "object",
+      "required": ["id", "kind", "role", "clips"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["video", "audio", "text", "sticker", "effect", "mixed"] },
+        "role": { "enum": ["main", "multi"] },
+        "index": { "type": "integer", "minimum": 0, "default": 0 },
+        "name": { "type": "string" },
+        "locked": { "type": "boolean", "default": false },
+        "muted": { "type": "boolean", "default": false },
+        "hidden": { "type": "boolean", "default": false },
+        "blend_default": { "type": "string", "default": "normal" },
+        "clips": { "type": "array", "items": { "$ref": "#/$defs/clip" } }
+      }
+    },
+
+    "clip": {
+      "type": "object",
+      "required": ["id", "seq_dur_us"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "media_id": { "$ref": "#/$defs/id" },
+        "seq_start_us": { "$ref": "#/$defs/us" },
+        "seq_dur_us": { "type": "integer", "minimum": 0 },
+        "src_in_us": { "$ref": "#/$defs/us" },
+        "src_dur_us": { "type": "integer", "minimum": 0 },
+        "speed": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+        "speed_curve": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["points"],
+              "properties": {
+                "points": {
+                  "type": "array", "minItems": 2,
+                  "items": {
+                    "type": "object",
+                    "required": ["t_us", "speed"],
+                    "properties": {
+                      "t_us": { "$ref": "#/$defs/us" },
+                      "speed": { "type": "number", "exclusiveMinimum": 0 }
+                    }
+                  }
+                },
+                "interp": { "enum": ["linear", "smooth"], "default": "linear" }
+              }
+            }
+          ]
+        },
+        "anchor": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["start_to"],
+              "properties": {
+                "start_to": { "type": "string" },
+                "offset_us": { "$ref": "#/$defs/us" }
+              }
+            }
+          ]
+        },
+        "enabled": { "type": "boolean", "default": true },
+        "locked": { "type": "boolean", "default": false },
+        "transform": { "$ref": "#/$defs/transform" },
+        "crop": { "$ref": "#/$defs/crop" },
+        "audio": { "$ref": "#/$defs/audio" },
+        "effects": { "type": "array", "items": { "$ref": "#/$defs/effect_inst" } },
+        "keyframes": { "type": "array", "items": { "$ref": "#/$defs/keyframe" } },
+        "transition_in": { "$ref": "#/$defs/transition" },
+        "transition_out": { "$ref": "#/$defs/transition" },
+        "text": { "$ref": "#/$defs/text" },
+        "ai": {
+          "type": "object",
+          "properties": {
+            "run_id": { "$ref": "#/$defs/id" },
+            "decision_id": { "$ref": "#/$defs/id" }
+          }
+        }
+      }
+    },
+
+    "transform": {
+      "type": "object",
+      "properties": {
+        "layout": { "enum": ["fit", "fill", "stretch", "none"], "default": "fit" },
+        "x": { "type": "number", "minimum": -100000, "maximum": 100000, "default": 0 },
+        "y": { "type": "number", "minimum": -100000, "maximum": 100000, "default": 0 },
+        "scale": {
+          "type": "array", "minItems": 2, "maxItems": 2,
+          "items": { "type": "number", "exclusiveMinimum": 0 },
+          "default": [1.0, 1.0]
+        },
+        "rotation_deg": { "type": "number", "default": 0 },
+        "anchor": {
+          "type": "array", "minItems": 2, "maxItems": 2,
+          "items": { "type": "number" },
+          "default": [0.5, 0.5]
+        },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 },
+        "flip": {
+          "type": "object",
+          "properties": {
+            "h": { "type": "boolean", "default": false },
+            "v": { "type": "boolean", "default": false }
+          }
+        }
+      }
+    },
+
+    "crop": {
+      "type": "object",
+      "properties": {
+        "mode": { "enum": ["inset", "corners"], "default": "inset" },
+        "left": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 },
+        "right": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 },
+        "top": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 },
+        "bottom": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 },
+        "corners": {
+          "type": ["array", "null"], "minItems": 8, "maxItems": 8,
+          "items": { "type": "number" }
+        },
+        "lock_aspect": { "type": "boolean", "default": false }
+      }
+    },
+
+    "audio": {
+      "type": "object",
+      "properties": {
+        "gain_db": { "type": "number", "minimum": -96, "maximum": 24, "default": 0 },
+        "pan": { "type": "number", "minimum": -1, "maximum": 1, "default": 0 },
+        "fade_in_us": { "$ref": "#/$defs/us" },
+        "fade_out_us": { "$ref": "#/$defs/us" },
+        "mute": { "type": "boolean", "default": false },
+        "speed_pitch_lock": { "type": "boolean", "default": true },
+        "denoise": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["enabled"],
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "model": { "type": "string" },
+                "amount": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          ]
+        },
+        "voice_separation": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["enabled"],
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "stem": { "enum": ["vocal", "music", "other"] }
+              }
+            }
+          ]
+        },
+        "eq": {
+          "type": "object",
+          "properties": {
+            "bands": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["freq", "gain_db"],
+                "properties": {
+                  "freq": { "type": "number", "minimum": 20, "maximum": 20000 },
+                  "gain_db": { "type": "number", "minimum": -24, "maximum": 24 },
+                  "q": { "type": "number", "minimum": 0.1, "maximum": 18 }
+                }
+              }
+            }
+          }
+        },
+        "compressor": {
+          "type": "object",
+          "properties": {
+            "threshold_db": { "type": "number", "minimum": -60, "maximum": 0 },
+            "ratio": { "type": "number", "minimum": 1, "maximum": 20 },
+            "attack_ms": { "type": "number", "minimum": 0 },
+            "release_ms": { "type": "number", "minimum": 1 }
+          }
+        },
+        "chain": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string" },
+              "plugin": { "type": "string" },
+              "params": { "type": "object" },
+              "bypass": { "type": "boolean", "default": false }
+            }
+          }
+        }
+      }
+    },
+
+    "effect_def": {
+      "type": "object",
+      "required": ["type", "impl"],
+      "properties": {
+        "type": { "type": "string" },
+        "impl": {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["node", "ofx", "dctl", "template"] },
+            "node": { "type": "string" },
+            "gpu": { "enum": ["wgsl", "cuda", "cpu"] },
+            "bundle": { "type": "string" },
+            "plugin_id": { "type": "string" },
+            "package_id": { "type": "string" }
+          }
+        },
+        "params_schema": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": { "enum": ["float", "int", "bool", "enum", "color", "vec2", "curve", "string"] },
+              "min": { "type": "number" },
+              "max": { "type": "number" },
+              "default": {},
+              "values": { "type": "array" },
+              "ui": { "type": "string" },
+              "unit": { "type": "string" }
+            }
+          }
+        },
+        "channels": { "type": "array", "items": { "enum": ["video", "audio"] } }
+      }
+    },
+
+    "effect_inst": {
+      "type": "object",
+      "required": ["id", "type", "order"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "type": { "type": "string" },
+        "order": { "type": "integer", "minimum": 0 },
+        "enabled": { "type": "boolean", "default": true },
+        "params": { "type": "object" },
+        "keyframes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["prop", "t_us", "v"],
+            "properties": {
+              "prop": { "type": "string", "pattern": "^params\\.[A-Za-z0-9_.]+$" },
+              "t_us": { "$ref": "#/$defs/us" },
+              "v": {},
+              "interp": { "enum": ["linear", "hold", "bezier", "ease_in", "ease_out"], "default": "bezier" }
+            }
+          }
+        }
+      }
+    },
+
+    "keyframe": {
+      "type": "object",
+      "required": ["prop", "t_us", "v"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "prop": {
+          "type": "string",
+          "pattern": "^(transform\\.(x|y|scale|rotation_deg|opacity)|audio\\.(gain_db|pan))$"
+        },
+        "t_us": { "$ref": "#/$defs/us" },
+        "v": {},
+        "interp": { "enum": ["linear", "hold", "bezier", "ease_in", "ease_out"], "default": "bezier" },
+        "ease": {
+          "type": "object",
+          "properties": {
+            "in": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } },
+            "out": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } }
+          }
+        }
+      }
+    },
+
+    "transition": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["id", "type", "dur_us"],
+          "properties": {
+            "id": { "$ref": "#/$defs/id" },
+            "type": { "type": "string" },
+            "dur_us": { "type": "integer", "minimum": 0 },
+            "params": { "type": "object" },
+            "align": { "enum": ["center", "start", "end"], "default": "center" }
+          }
+        }
+      ]
+    },
+
+    "text": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["kind", "content"],
+          "properties": {
+            "kind": { "enum": ["text", "subtitle", "sticker", "lyric"] },
+            "content": { "type": "string" },
+            "rich": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["range"],
+                "properties": {
+                  "range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer", "minimum": 0 } },
+                  "bold": { "type": "boolean" },
+                  "italic": { "type": "boolean" },
+                  "underline": { "type": "boolean" },
+                  "size": { "type": "number", "exclusiveMinimum": 0 },
+                  "fill": { "$ref": "#/$defs/color4" },
+                  "stroke": {
+                    "type": "object",
+                    "properties": {
+                      "color": { "$ref": "#/$defs/color4" },
+                      "width": { "type": "number", "minimum": 0 }
+                    }
+                  }
+                }
+              }
+            },
+            "box": {
+              "type": "object",
+              "properties": {
+                "w": { "type": "number", "minimum": 0, "maximum": 1 },
+                "h": { "type": ["number", "null"] },
+                "align": { "enum": ["left", "center", "right"] },
+                "valign": { "enum": ["top", "middle", "bottom"] },
+                "max_lines": { "type": "integer", "minimum": 1 }
+              }
+            },
+            "font": {
+              "type": "object",
+              "properties": {
+                "family": { "type": "string" },
+                "path": { "type": ["string", "null"] },
+                "fallback": { "type": "array", "items": { "type": "string" } }
+              }
+            },
+            "spacing": {
+              "type": "object",
+              "properties": {
+                "letter": { "type": "number" },
+                "line": { "type": "number" }
+              }
+            },
+            "animation": {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "oneOf": [
+                    { "type": "null" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "preset": { "type": "string" },
+                        "dur_us": { "$ref": "#/$defs/us" }
+                      }
+                    }
+                  ]
+                },
+                "out": {
+                  "oneOf": [
+                    { "type": "null" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "preset": { "type": "string" },
+                        "dur_us": { "$ref": "#/$defs/us" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "ai": {
+      "type": "object",
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "agent", "goal", "status"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "agent": { "enum": ["director", "editor", "critic", "external"] },
+              "model": {
+                "type": "object",
+                "properties": {
+                  "route": { "type": "string" },
+                  "provider": { "type": "string" },
+                  "tokens_in": { "type": "integer", "minimum": 0 },
+                  "tokens_out": { "type": "integer", "minimum": 0 }
+                }
+              },
+              "goal": { "type": "string" },
+              "contract": { "type": "object" },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["seq", "tool"],
+                  "properties": {
+                    "seq": { "type": "integer", "minimum": 1 },
+                    "tool": { "type": "string" },
+                    "input_ref": { "type": "string" },
+                    "output_ref": { "type": "string" },
+                    "ms": { "type": "integer", "minimum": 0 }
+                  }
+                }
+              },
+              "decisions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["id", "action", "rationale"],
+                  "properties": {
+                    "id": { "$ref": "#/$defs/id" },
+                    "action": { "enum": ["cut", "trim", "reorder", "add_effect", "add_text", "add_audio", "adjust", "recolor", "other"] },
+                    "target_ref": { "type": "string" },
+                    "rationale": { "type": "string" },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["kind", "ref"],
+                        "properties": {
+                          "kind": { "enum": ["transcript", "shot", "frame", "waveform", "user_request", "script", "structure", "render"] },
+                          "ref": { "type": "string" },
+                          "range_us": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } }
+                        }
+                      }
+                    },
+                    "before_ref": { "type": "string" },
+                    "after_ref": { "type": "string" },
+                    "accepted": { "type": ["boolean", "null"] },
+                    "applied_tx": { "type": "string" }
+                  }
+                }
+              },
+              "status": { "enum": ["planned", "previewed", "applied", "rejected", "failed"] }
+            }
+          }
+        }
+      }
+    },
+
+    "history": {
+      "type": "object",
+      "properties": {
+        "cursor": { "type": "integer", "minimum": 0 },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["seq", "actor", "cmd"],
+            "properties": {
+              "seq": { "type": "integer", "minimum": 0 },
+              "ts_us": { "$ref": "#/$defs/us" },
+              "actor": { "enum": ["user", "agent", "system"] },
+              "cmd": { "type": "string" },
+              "target": { "type": "string" },
+              "args": { "type": "object" },
+              "tx": { "type": "string" },
+              "run": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

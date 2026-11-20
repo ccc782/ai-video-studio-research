@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0.0",
+  "min_reader": "1.0.0",
+  "id": "prj_01HZX0000000000000000000A",
+  "name": "demo",
+  "created_us": 1795000000000000,
+  "updated_us": 1795000000000000,
+  "generator": {
+    "app": "AI Video Studio",
+    "version": "0.1.0"
+  },
+  "settings": {
+    "default_sequence_id": "sq_main",
+    "ai": {
+      "max_batch_clips": 3
+    }
+  },
+  "media": [
+    {
+      "id": "md_01",
+      "kind": "video",
+      "uri": "file:///D:/a.mp4",
+      "probe": {
+        "width": 1920,
+        "height": 1080,
+        "fps": {
+          "num": 30,
+          "den": 1,
+          "drop_frame": false
+        },
+        "dur_us": 6000000
+      }
+    }
+  ],
+  "sequences": [
+    {
+      "id": "sq_main",
+      "name": "主序列",
+      "canvas": {
+        "width": 1080,
+        "height": 1920,
+        "ratio": "9:16",
+        "background": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fps": {
+        "num": 30,
+        "den": 1,
+        "drop_frame": false
+      },
+      "sample_rate": 48000,
+      "channels": 2,
+      "dur_us": 6000000,
+      "tracks": [
+        {
+          "id": "tr_v1",
+          "kind": "video",
+          "role": "main",
+          "index": 0,
+          "clips": [
+            {
+              "id": "cl_01",
+              "media_id": "md_01",
+              "seq_start_us": 0,
+              "seq_dur_us": 6000000,
+              "src_in_us": 0,
+              "src_dur_us": 6000000,
+              "speed": 1.0,
+              "transform": {
+                "layout": "fill",
+                "x": 0,
+                "y": 0,
+                "scale": [
+                  1.0,
+                  1.0
+                ],
+                "rotation_deg": 0,
+                "opacity": 1.0
+              },
+              "effects": [],
+              "keyframes": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "effects_lib": [],
+  "ai": {
+    "runs": []
+  },
+  "history": {
+    "cursor": 0,
+    "events": []
+  }
+}

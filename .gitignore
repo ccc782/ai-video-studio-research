@@ -1,0 +1,31 @@
+# 安装包与隔离环境（不入库）
+*.zip
+*.exe
+*.msi
+*.cab
+*.7z
+*.dll
+*.pdf
+
+# 隔离版软件目录
+DaVinci_Resolve_21.2_隔离版/
+剪映专业版_11.7.0.14652_隔离版/
+AfterEffects_27.0/
+
+# 抽取的中间产物与抓取原始件
+_research/_src/
+_research/drp_extract/
+_research/resolve21_manual*
+_research/*.html
+_research/*.json
+_research/dump.py
+_research/extract.py
+_research/pagemap.py
+_research/_dump_out.txt
+
+# 系统与临时
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+*.log

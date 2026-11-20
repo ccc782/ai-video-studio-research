@@ -1,0 +1,8 @@
+Copyright (c) 2026 AI Video Studio Project. All rights reserved.
+
+本仓库内容（文档、schema、脚本、样例）版权归项目所有者所有。
+未随仓库附带开源协议前，默认保留所有权利；对外分发、商用、二次发布前请与所有者确认。
+
+仓库正文中提及的第三方项目（FFmpeg、OpenTimelineIO、OpenFX、OpenColorIO、MAGPIE、
+pyJianYingDraft、aftereffects-aep-parser、py-aep 等）各自适用其自身协议，
+本仓库不改变也不覆盖这些协议。GPL 系项目在本仓库的结论中一律标注为「只能进程外隔离」。
